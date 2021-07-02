@@ -25,6 +25,7 @@ public class SlashCommandTest {
         SlashCommand calculator = SlashCommand.with("calculator", "init a calculator").createForServer(this.api.getServers().stream().findFirst().get()).join();
 
         this.api.addSlashCommandCreateListener(new CalculatorListener());
+        this.api.addMessageComponentCreateListener(new CalculatorListener());
 
     }
 
