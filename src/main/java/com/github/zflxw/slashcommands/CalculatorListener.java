@@ -1,6 +1,5 @@
 package com.github.zflxw.slashcommands;
 
-import org.apache.commons.lang3.StringUtils;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.component.ActionRow;
 import org.javacord.api.entity.message.component.Button;
@@ -11,19 +10,18 @@ import org.javacord.api.interaction.MessageComponentInteraction;
 import org.javacord.api.interaction.SlashCommandInteraction;
 import org.javacord.api.listener.interaction.MessageComponentCreateListener;
 import org.javacord.api.listener.interaction.SlashCommandCreateListener;
+import org.mariuszgromada.math.mxparser.Expression;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 
 public class CalculatorListener implements SlashCommandCreateListener, MessageComponentCreateListener {
+    // unused yet, will be implemented when multiple / user bound calculators are implemented
     private final Map<Long, Double> currentSum = new HashMap<>();
 
     String contentString = "";
-    int defaultLength = 37;
+    int defaultLength = 40;
 
     @Override
     public void onSlashCommandCreate(SlashCommandCreateEvent event) {
@@ -31,47 +29,47 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
 
         if (interaction.getCommandName().equals("calculator")) {
             event.getSlashCommandInteraction().createImmediateResponder()
-                    .addEmbed(new EmbedBuilder().setColor(Color.decode("0x2980b9")).setDescription("```" + formatString("0") + "```"))
+                    .addEmbed(new EmbedBuilder().setColor(Color.decode("0x2980b9")).setDescription("```" + formatString(String.valueOf(0)) + "```"))
                     .addComponents(
                             ActionRow.of(
                                     Button.danger("btnOff", "Off"),
                                     Button.primary("btnClear", "C"),
                                     Button.primary("btnRemLast", "←"),
-                                    Button.success("btnEquals", "="),
+                                    Button.primary("btnDivide", "÷"),
                                     Button.primary("btnSin", "SIN")
                             ),
                             ActionRow.of(
                                     Button.secondary("btnSeven", "7"),
                                     Button.secondary("btnEight", "8"),
                                     Button.secondary("btnNine", "9"),
-                                    Button.primary("btnDivide", "÷"),
+                                    Button.primary("btnMultiply", "x"),
                                     Button.primary("btnCos", "COS")
                             ),
                             ActionRow.of(
                                     Button.secondary("btnFour", "4"),
                                     Button.secondary("btnFive", "5"),
                                     Button.secondary("btnSix", "6"),
-                                    Button.primary("btnMultiply", "x"),
+                                    Button.primary("btnSubtract", "-"),
                                     Button.primary("btnTan", "TAN")
                             ),
                             ActionRow.of(
                                     Button.secondary("btnOne", "1"),
                                     Button.secondary("btnTwo", "2"),
                                     Button.secondary("btnThree", "3"),
-                                    Button.primary("btnSubtract", "-"),
+                                    Button.primary("btnAdd", "+"),
                                     Button.primary("btnPower", "x²")
                             ),
                             ActionRow.of(
                                     Button.secondary("btnZero", "0"),
                                     Button.secondary("btnDot", "."),
                                     Button.secondary("btnToggle", "±"),
-                                    Button.primary("btnAdd", "+"),
+                                    Button.success("btnEquals", "="),
                                     Button.primary("btnSqrt", "²√")
                             )
                     )
                     .respond();
 
-            contentString = "0";
+            contentString = "";
             currentSum.put(event.getSlashCommandInteraction().getUser().getId(), 0.0D);
         }
     }
@@ -79,7 +77,8 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
     @Override
     public void onComponentCreate(MessageComponentCreateEvent event) {
         MessageComponentInteraction interaction = event.getMessageComponentInteraction();
-        String display = "";
+        String display = "0";
+        boolean clearContent = false;
 
         if (contentString.length() < defaultLength) {
             switch (interaction.getCustomId()) {
@@ -95,10 +94,11 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
                 case "btnZero" -> contentString = contentString.concat("0");
                 case "btnDot" -> contentString = contentString.concat(".");
                 case "btnToggle" -> {
-                    if (contentString.startsWith("-"))
+                    if (contentString.startsWith("-")) {
                         contentString = contentString.substring(1);
-                    else
+                    } else {
                         contentString = "-".concat(contentString);
+                    }
                 }
             }
         }
@@ -106,15 +106,27 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
         switch (interaction.getCustomId()) {
             case "btnOff" -> interaction.getMessage().ifPresent(Message::delete);
             case "btnClear" -> {
-                contentString = "";
                 display = "";
+                clearContent = true;
             }
-            case "btnRemLast" -> contentString = contentString.substring(0, contentString.length() - 1);
-            case "btnEquals" -> contentString = calculate(contentString);
+            case "btnRemLast" -> {
+                if (contentString.length() > 0) {
+                    contentString = contentString.substring(0, contentString.length() - 1);
+                }
+            }
+            case "btnEquals" -> {
+                contentString = calculate(contentString);
+                clearContent = true;
+            }
+            case "btnAdd" -> contentString = contentString.concat(" + ");
+            case "btnSubtract" -> contentString = contentString.concat(" - ");
+            case "btnDivide" -> contentString = contentString.concat(" / ");
+            case "btnMultiply" -> contentString = contentString.concat(" * ");
             case "btnSin" -> {
                 try {
                     double result = Math.sin(Math.toRadians(Double.parseDouble(contentString)));
-                    contentString = result + " =";
+                    contentString = String.valueOf(result);
+                    display = result + " =";
                 } catch (NumberFormatException exception) {
                     contentString = "";
                     display = "Syntax Error";
@@ -123,7 +135,8 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
             case "btnCos" -> {
                 try {
                     double result = Math.cos(Math.toRadians(Double.parseDouble(contentString)));
-                    contentString = result + " =";
+                    contentString = String.valueOf(result);
+                    display = result + " =";
                 } catch (NumberFormatException exception) {
                     contentString = "";
                     display = "Syntax Error";
@@ -132,7 +145,8 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
             case "btnTan" -> {
                 try {
                     double result = Math.tan(Math.toRadians(Double.parseDouble(contentString)));
-                    contentString = result + " =";
+                    contentString = String.valueOf(result);
+                    display = result + " =";
                 } catch (NumberFormatException exception) {
                     contentString = "";
                     display = "Syntax Error";
@@ -141,7 +155,8 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
             case "btnPower" -> {
                 try {
                     double result = Math.pow(Double.parseDouble(contentString), 2);
-                    contentString = result + " =";
+                    contentString = String.valueOf(result);
+                    display = result + " =";
                 } catch (NumberFormatException exception) {
                     contentString = "";
                     display = "Syntax Error";
@@ -150,7 +165,8 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
             case "btnSqrt" -> {
                 try {
                     double result = Math.sqrt(Double.parseDouble(contentString));
-                    contentString = contentString + "\n" + result + " =";
+                    contentString = String.valueOf(result);
+                    display = result + " =";
                 } catch (NumberFormatException exception) {
                     contentString = "";
                     display = "Syntax Error";
@@ -158,30 +174,44 @@ public class CalculatorListener implements SlashCommandCreateListener, MessageCo
             }
         }
 
+        if (interaction.getMessage().isEmpty()) {
+            interaction.createImmediateResponder().setContent("Failed updating your content, because the message is null.");
+            return;
+        }
+
+        if (display.equals("0")) {
+            display = contentString;
+        }
+
         EmbedBuilder embed = interaction.getMessage().get().getEmbeds().get(0).toBuilder();
-        embed.setDescription("```" + ((display.equals("")) ? formatString(contentString) : formatString(display)) + "```");
+        embed.setDescription("```" + formatString(display) + "```");
+
+        if (clearContent) {
+            contentString = "";
+        }
 
         interaction.getMessage().get().edit(embed);
         interaction.createImmediateResponder().respond();
     }
 
-    private String calculate(String expression) {
-        ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
-        ScriptEngine engine = scriptEngineManager.getEngineByName("JavaScript");
+    private String calculate(String input) {
+        Expression expression = new Expression(input);
 
-        try {
-            return String.valueOf(engine.eval(expression.replaceAll("\\s+", "")));
-        } catch (ScriptException e) {
-            return "Error";
-        }
+        return String.valueOf(expression.calculate());
     }
 
     private String formatString(String content) {
-        return formatString(content, 37);
+        return formatString(content, defaultLength);
     }
 
     private String formatString(String content, int width) {
-        int matches = StringUtils.countMatches(content, "\n");
-        return new String(new char[(width * Math.max(1, matches)) - content.length()]).replace('\0', ' ') + content;
+        String[] lines = content.split("\n");
+        StringBuilder builder = new StringBuilder();
+
+        for (String line : lines) {
+            builder.append(new String(new char[width - content.length()]).replace('\0', ' ')).append(line).append("\n");
+        }
+
+        return builder.toString();
     }
 }

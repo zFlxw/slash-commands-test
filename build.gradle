@@ -16,6 +16,7 @@ dependencies {
     implementation 'org.javacord:javacord:3.3.1'
     implementation 'org.apache.commons:commons-lang3:3.6'
     implementation 'org.jetbrains:annotations:16.0.2'
+    implementation 'org.mariuszgromada.math:MathParser.org-mXparser:4.4.2'
 
     compileOnly 'org.projectlombok:lombok:1.18.20'
     annotationProcessor 'org.projectlombok:lombok:1.18.20'
